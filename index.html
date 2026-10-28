@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tune&Beat">
+<meta name="theme-color" content="#f7f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f0e1a" media="(prefers-color-scheme: dark)">
+<title>チューナー＆メトロノーム</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+<style>
+/* レイアウト: 上に大きな表示パネル（画面の高さに合わせて伸びる）、その下に操作ボタン、いちばん下にタブバー
+   テーマ: やさしいネオン（ラベンダー1色でまとめる） */
+:root{
+  --bg:#f7f7fb; --surface:#ffffff; --ink:#23223a; --muted:#7b7a94; --line:#e7e6f1; --soft:#f3f2fa;
+  --sel:rgba(124,108,255,.12); --sel-ink:#4a3fd1;
+  /* ガラスのような半透明ボタン */
+  --glass:rgba(124,108,255,.07); --glass-line:rgba(124,108,255,.20); --glass-hi:rgba(255,255,255,.7);
+  --btn-bg:rgba(124,108,255,.72); --btn-line:rgba(255,255,255,.55); --btn-ink:#ffffff;
+  --disp:#ffffff; --disp-ink:#23223a; --disp-muted:#8e8da8; --disp-line:#e6e4f2; --disp-soft:#f4f3fb;
+  /* ネオンの3色と、その光（にじみ）の色 */
+  --glow:#7c6cff; --ok:#7c6cff; --warn:#7c6cff;
+  --glow-a:rgba(124,108,255,.45); --ok-a:rgba(124,108,255,.5); --warn-a:rgba(124,108,255,.45);
+  --halo:rgba(124,108,255,.07);
+  --accent:#7c6cff; --accent-ink:#ffffff;
+  --shadow:rgba(60,50,140,.16);
+  --f-display:"Quicksand","Zen Maru Gothic",system-ui,sans-serif;
+  --f-body:"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans",system-ui,sans-serif;
+  --f-mono:"Quicksand","Zen Maru Gothic",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f0e1a; --surface:#17162a; --ink:#eceaff; --muted:#8f8cae; --line:#262541; --soft:#1d1c33;
+    --sel:rgba(169,156,255,.16); --sel-ink:#e6e2ff;
+    --glass:rgba(169,156,255,.08); --glass-line:rgba(169,156,255,.22); --glass-hi:rgba(255,255,255,.10);
+    --btn-bg:rgba(169,156,255,.26); --btn-line:rgba(190,180,255,.65); --btn-ink:#f3f0ff;
+    --disp:#141327; --disp-ink:#eceaff; --disp-muted:#8f8cae; --disp-line:#2b2a4a; --disp-soft:#1d1c36;
+    --glow:#a99cff; --ok:#a99cff; --warn:#a99cff;
+    --glow-a:rgba(169,156,255,.65); --ok-a:rgba(169,156,255,.65); --warn-a:rgba(169,156,255,.65);
+    --halo:rgba(169,156,255,.12);
+    --accent:#a99cff; --accent-ink:#120f24;
+    --shadow:rgba(0,0,0,.55);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f0e1a; --surface:#17162a; --ink:#eceaff; --muted:#8f8cae; --line:#262541; --soft:#1d1c33;
+  --sel:rgba(169,156,255,.16); --sel-ink:#e6e2ff;
+  --glass:rgba(169,156,255,.08); --glass-line:rgba(169,156,255,.22); --glass-hi:rgba(255,255,255,.10);
+  --btn-bg:rgba(169,156,255,.26); --btn-line:rgba(190,180,255,.65); --btn-ink:#f3f0ff;
+  --disp:#141327; --disp-ink:#eceaff; --disp-muted:#8f8cae; --disp-line:#2b2a4a; --disp-soft:#1d1c36;
+  --glow:#a99cff; --ok:#a99cff; --warn:#a99cff;
+  --glow-a:rgba(169,156,255,.65); --ok-a:rgba(169,156,255,.65); --warn-a:rgba(169,156,255,.65);
+  --halo:rgba(169,156,255,.12);
+  --accent:#a99cff; --accent-ink:#120f24;
+  --shadow:rgba(0,0,0,.55);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--f-body); font-size:15px;
+  -webkit-tap-highlight-color:transparent; overscroll-behavior:none;
+  display:flex; flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px);
+}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+main{flex:1;overflow-y:auto;display:flex;flex-direction:column;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:12px 16px}
+.panel{flex:1;width:100%;max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+
+/* ---- 表示パネル ---- */
+.display{
+  flex:1 1 auto; min-height:min(60vh,600px);
+  display:flex;flex-direction:column;justify-content:space-between;gap:8px;
+  padding:16px 16px 18px; border-radius:28px; color:var(--disp-ink);
+  background:radial-gradient(70% 45% at 50% 40%, var(--halo) 0%, transparent 70%), var(--disp);
+  border:1px solid var(--disp-line);
+  box-shadow:0 20px 40px -26px var(--shadow);
+  position:relative; overflow:hidden;
+}
+/* ふわっと光る層（拍・ぴったり） */
+.flash{position:absolute;inset:0;pointer-events:none;opacity:0;border-radius:inherit;
+  background:radial-gradient(65% 50% at 50% 45%, var(--glow-a) 0%, transparent 72%)}
+.note-glow{opacity:0;transition:opacity .3s}
+.intune .note-glow{opacity:1}
+.display > :not(.flash){position:relative;z-index:1}
+.disp-head{display:flex;justify-content:space-between;align-items:center;font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.1em;color:var(--disp-muted)}
+.status{display:flex;align-items:center;gap:6px}
+.status i{width:7px;height:7px;border-radius:50%;background:var(--disp-line)}
+.live .status i{background:var(--ok);box-shadow:0 0 8px var(--ok-a)}
+.chip{border:1px solid var(--disp-line);border-radius:999px;padding:4px 10px}
+/* チューナー画面の小さな拍ランプ（メトロノームが動いているときだけ） */
+.mini-beat{display:flex;align-items:center;gap:7px;color:var(--disp-ink);font-variant-numeric:tabular-nums}
+.mini-beat i{position:relative;width:12px;height:12px;border-radius:50%;background:var(--disp-line)}
+.mini-beat s{position:absolute;inset:0;border-radius:50%;background:var(--glow);box-shadow:0 0 10px var(--glow-a);opacity:0}
+
+/* ---- チューナー ---- */
+.meter-svg{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+.meter-svg svg{display:block;width:min(100%,360px);max-height:100%;height:auto;overflow:visible}
+.track{fill:none;stroke:var(--disp-line);stroke-width:6;stroke-linecap:round}
+.zone{fill:none;stroke:var(--ok);stroke-width:6;opacity:.5;transition:opacity .2s}
+.intune .zone{opacity:1;filter:drop-shadow(0 0 6px var(--ok-a))}
+.dev{fill:none;stroke:var(--glow);stroke-width:6;stroke-linecap:round;filter:drop-shadow(0 0 6px var(--glow-a));transition:stroke .15s}
+.intune .dev{stroke:var(--ok);filter:drop-shadow(0 0 6px var(--ok-a))}
+.idle .dev{opacity:0}
+.tick{stroke:var(--disp-muted);stroke-linecap:round}
+.tick.major{stroke:var(--disp-ink)}
+.tlabel{fill:var(--disp-muted);font-family:var(--f-mono);font-size:11px;font-weight:600}
+.needle{stroke:var(--glow);stroke-width:4;stroke-linecap:round;filter:drop-shadow(0 0 6px var(--glow-a));transition:stroke .15s,opacity .3s}
+.needle-tip{fill:var(--glow);filter:drop-shadow(0 0 8px var(--glow-a));transition:fill .15s}
+.idle .needle{opacity:.3;filter:none}
+.idle .needle-tip{fill:var(--disp-line);filter:none}
+.intune .needle{stroke:var(--ok);filter:drop-shadow(0 0 8px var(--ok-a))}
+.intune .needle-tip{fill:var(--ok);filter:drop-shadow(0 0 10px var(--ok-a))}
+.note{fill:var(--disp-ink);font-family:var(--f-display);font-weight:600;font-size:96px;letter-spacing:-.02em;transition:fill .15s}
+.oct{fill:var(--disp-muted);font-size:30px;font-weight:600}
+.acc{font-family:var(--f-body);font-size:46px;font-weight:700}
+.intune .note{fill:var(--ok);filter:drop-shadow(0 0 12px var(--ok-a))}
+.lamp{fill:none;stroke:var(--disp-line);stroke-width:1.5;transition:all .1s}
+.lamp-txt{fill:var(--disp-muted);font-size:15px;font-weight:700}
+.flat-on .lamp.flat,.sharp-on .lamp.sharp{fill:var(--warn);stroke:var(--warn);filter:drop-shadow(0 0 8px var(--warn-a))}
+.flat-on .lamp-txt.flat,.sharp-on .lamp-txt.sharp{fill:#fff}
+/* 和音で合わせる音程の目安（▲） */
+.jmark{fill:var(--disp-ink)}
+.jlabel{fill:var(--disp-ink);font-family:var(--f-mono);font-size:12px;font-weight:700}
+
+.readout{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;text-align:center;
+  border-top:1px solid var(--disp-line);padding-top:12px}
+.readout div{display:flex;flex-direction:column;gap:3px}
+.readout b{font-family:var(--f-mono);font-size:21px;font-weight:700;font-variant-numeric:tabular-nums}
+.readout span{font-size:10px;font-family:var(--f-mono);font-weight:600;letter-spacing:.1em;color:var(--disp-muted)}
+
+/* ---- 操作エリア ---- */
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--glass);border:1px solid var(--glass-line);border-radius:20px;padding:10px 10px 10px 16px}
+.row .lbl{font-size:12px;color:var(--muted);letter-spacing:.04em}
+.row .lbl b{display:block;color:var(--ink);font-size:14px;font-weight:700;letter-spacing:0}
+.stepper{display:flex;align-items:center;gap:4px}
+.stepper button{width:42px;height:42px;border-radius:50%;border:1px solid var(--glass-line);background:var(--glass);box-shadow:inset 0 1px 0 var(--glass-hi);font-size:20px;line-height:1}
+.stepper output{min-width:58px;text-align:center;font-family:var(--f-display);font-size:30px;font-weight:700;font-variant-numeric:tabular-nums}
+
+.msg{margin:0;font-size:13px;color:var(--warn);line-height:1.6}
+
+/* Start はネオンが点いた状態、Stop はネオン管の輪郭だけ光る */
+.primary{flex:none;height:62px;border-radius:31px;border:1px solid var(--btn-line);color:var(--btn-ink);
+  /* 上半分にうっすら光の反射を入れて、ガラスのように */
+  background:linear-gradient(180deg,rgba(255,255,255,.28) 0%,rgba(255,255,255,0) 55%),var(--btn-bg);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45), 0 0 24px -6px var(--glow-a), 0 12px 26px -16px var(--glow-a);
+  font-family:var(--f-display);font-size:24px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  transition:transform .1s}
+.primary:active{transform:scale(.98)}
+.primary.on{background:linear-gradient(180deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 55%),var(--glass);border-color:var(--glow);color:var(--accent);text-shadow:0 0 10px var(--glow-a);box-shadow:0 0 18px -4px var(--glow-a), inset 0 0 14px -6px var(--glow-a)}
+
+/* ---- メトロノーム ---- */
+#metroDisp{min-height:min(50vh,480px)}
+#metro{gap:12px}
+.tempo-name{font-family:var(--f-display);font-weight:600;font-size:22px;letter-spacing:.04em;color:var(--disp-ink)}
+.beat-ring{flex:1;position:relative;display:grid;place-items:center;min-height:0}
+.beat-ring svg{display:block;width:min(100%,300px,34vh);height:auto;overflow:visible}
+.bezel line{stroke:var(--disp-line);stroke-width:1.2}
+.bezel line.q{stroke:var(--disp-muted);stroke-width:1.6}
+.seg-base{fill:none;stroke:var(--disp-line);stroke-width:12;stroke-linecap:round}
+.seg-base.down{stroke:var(--disp-muted);opacity:.45}
+.seg-lit{fill:none;stroke:var(--glow);stroke-width:12;stroke-linecap:round;opacity:0;filter:drop-shadow(0 0 10px var(--glow-a))}
+.seg-lit.down{stroke-width:16}
+.core{fill:var(--glow);opacity:0}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:2px}
+.ring-center output{font-family:var(--f-display);font-size:86px;font-weight:700;line-height:.9;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.ring-center small{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.24em;color:var(--disp-muted)}
+.beat-count{font-family:var(--f-mono);font-size:13px;font-weight:700;letter-spacing:.14em;color:var(--disp-muted);min-height:16px}
+.live .beat-count{color:var(--glow);text-shadow:0 0 8px var(--glow-a)}
+.bpm{display:flex;align-items:center;justify-content:center;gap:14px}
+.bpm button{width:52px;height:52px;border-radius:50%;border:1px solid var(--glass-line);background:var(--glass);box-shadow:inset 0 1px 0 var(--glass-hi);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:var(--disp-ink);font-size:24px;line-height:1}
+.bpm .tap{width:auto;height:52px;padding:0 26px;border-radius:26px;font-family:var(--f-display);font-size:19px;font-weight:700;letter-spacing:.16em}
+
+.tempo-ctl{display:flex;align-items:center;gap:10px;padding:0 4px;font-family:var(--f-mono);font-size:11px;font-weight:600;color:var(--muted)}
+.tempo-ctl input{flex:1}
+input[type=range]{accent-color:var(--accent);height:28px;margin:0}
+
+.group{display:flex;flex-direction:column;gap:6px}
+.group h2{margin:0 0 0 4px;font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.06em}
+.seg{display:grid;gap:2px;padding:4px;border-radius:18px;background:var(--glass);border:1px solid var(--glass-line)}
+.seg.meter-seg{grid-template-columns:repeat(4,1fr)}
+.seg.sub-seg{grid-template-columns:repeat(5,1fr)}
+.seg button{min-height:46px;border-radius:14px;border:0;background:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:4px 2px;transition:background .15s,box-shadow .15s}
+.seg button b{font-family:var(--f-display);font-size:19px;font-weight:700;line-height:1.1}
+.seg button span{font-size:9.5px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--sel);color:var(--sel-ink);box-shadow:inset 0 0 0 1px var(--glow), inset 0 1px 0 var(--glass-hi), 0 0 14px -3px var(--glow-a)}
+.seg button[aria-pressed="true"] span{color:inherit;opacity:.8}
+
+.vol{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted);white-space:nowrap;padding:0 4px}
+.vol input{flex:1}
+
+/* ---- 下のタブバー ---- */
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--bg);
+  padding:6px max(16px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.tabs button{height:52px;border:0;border-radius:18px;background:none;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:13px;position:relative}
+.tabs button svg{width:22px;height:22px}
+.tabs button[aria-selected="true"]{background:var(--glass);border:1px solid var(--glass-line);color:var(--ink);font-weight:700;box-shadow:inset 0 1px 0 var(--glass-hi)}
+.tabs button[aria-selected="true"] svg{color:var(--glow);filter:drop-shadow(0 0 4px var(--glow-a))}
+.tabs .live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--glow-a)}
+
+@media (max-height:700px){ .display{min-height:52vh} #metroDisp{min-height:40vh} .ring-center output{font-size:72px} }
+@media (prefers-reduced-motion: reduce){ .lamp,.primary,.seg button{transition:none} }
+</style>
+</head>
+<body>
+
+<main>
+  <!-- ================= チューナー画面 ================= -->
+  <section id="tuner" class="panel" aria-label="チューナー">
+    <div class="display idle" id="meter">
+      <div class="disp-head">
+        <span class="chip" id="refChip">A4 = 442 Hz</span>
+        <span class="mini-beat" id="miniBeat" hidden><i><s id="miniGlow"></s></i><b id="miniBpm">120</b></span>
+        <span class="status"><i></i><span id="tunerStatus">STANDBY</span></span>
+      </div>
+
+      <div class="meter-svg">
+        <svg viewBox="-24 -20 368 290" role="img" aria-label="音程メーター">
+          <path id="track" class="track"/>
+          <path id="zone" class="zone"/>
+          <path id="dev" class="dev"/>
+          <g id="scale"></g>
+          <g id="jmarks"></g>
+          <!-- 針（棒）：下の支点を中心にスイングする -->
+          <g id="needle">
+            <line class="needle" x1="160" y1="150" x2="160" y2="30"/>
+            <circle class="needle-tip" cx="160" cy="30" r="5.5"/>
+          </g>
+          <!-- ぴったりのとき、音名のまわりだけがふわっと光る -->
+          <defs><radialGradient id="ng"><stop offset="0" style="stop-color:var(--ok);stop-opacity:.45"/><stop offset=".55" style="stop-color:var(--ok);stop-opacity:.15"/><stop offset="1" style="stop-color:var(--ok);stop-opacity:0"/></radialGradient></defs>
+          <circle class="note-glow" cx="160" cy="203" r="92" fill="url(#ng)"/>
+          <!-- 真ん中の音名 -->
+          <text class="note" x="160" y="240" text-anchor="middle"><tspan id="noteName">—</tspan><tspan id="noteAcc" class="acc"></tspan><tspan id="noteOct" class="oct"></tspan></text>
+          <!-- ♭ / ♯ ランプ -->
+          <circle class="lamp flat" cx="22" cy="246" r="17"/>
+          <text class="lamp-txt flat" x="22" y="251" text-anchor="middle">♭</text>
+          <circle class="lamp sharp" cx="298" cy="246" r="17"/>
+          <text class="lamp-txt sharp" x="298" y="251" text-anchor="middle">♯</text>
+        </svg>
+      </div>
+
+      <div class="readout">
+        <div><b id="freq">—</b><span>FREQ Hz</span></div>
+        <div><b id="cents">—</b><span>CENT</span></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="lbl">基準音 <b>A4（440〜450 Hz）</b></div>
+      <div class="stepper">
+        <button id="refDown" aria-label="基準音を下げる">−</button>
+        <output id="refVal">442</output>
+        <button id="refUp" aria-label="基準音を上げる">＋</button>
+      </div>
+    </div>
+
+    <p id="tunerMsg" class="msg" hidden></p>
+    <button id="tunerBtn" class="primary">Start</button>
+  </section>
+
+  <!-- ================= メトロノーム画面 ================= -->
+  <section id="metro" class="panel" aria-label="メトロノーム" hidden>
+    <div class="display" id="metroDisp">
+      <div class="flash" id="flash"></div>
+      <div class="disp-head">
+        <span class="tempo-name" id="tempoName">Allegro</span>
+        <span class="chip" id="meterChip">強拍なし</span>
+      </div>
+
+      <div class="beat-ring">
+        <svg viewBox="0 0 280 280" aria-hidden="true">
+          <circle id="core" class="core" cx="140" cy="140" r="100"/>
+          <g id="bezel" class="bezel"></g>
+          <g id="segBase"></g>
+          <g id="segLit"></g>
+        </svg>
+        <div class="ring-center">
+          <div class="beat-count" id="beatCount">READY</div>
+          <output id="bpmVal">120</output>
+          <small>BPM</small>
+        </div>
+      </div>
+
+      <div class="bpm">
+        <button id="bpmDown" aria-label="テンポを下げる">−</button>
+        <button class="tap" id="tapBtn">TAP</button>
+        <button id="bpmUp" aria-label="テンポを上げる">＋</button>
+      </div>
+    </div>
+
+    <div class="tempo-ctl">
+      <span>30</span>
+      <input type="range" id="bpmRange" min="30" max="300" value="120" aria-label="テンポ">
+      <span>300</span>
+    </div>
+
+    <div class="group">
+      <h2>拍子</h2>
+      <div class="seg meter-seg" id="meterSeg">
+        <button data-v="0" aria-pressed="true"><b>—</b><span>なし</span></button>
+        <button data-v="2" aria-pressed="false"><b>2</b><span>拍子</span></button>
+        <button data-v="3" aria-pressed="false"><b>3</b><span>拍子</span></button>
+        <button data-v="4" aria-pressed="false"><b>4</b><span>拍子</span></button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>細かいビート</h2>
+      <div class="seg sub-seg" id="subSeg">
+        <button data-v="12" aria-pressed="true"><b>♩</b><span>なし</span></button>
+        <button data-v="6" aria-pressed="false"><b>♫</b><span>8分</span></button>
+        <button data-v="4" aria-pressed="false"><b>3</b><span>3連符</span></button>
+        <button data-v="3" aria-pressed="false"><b>16</b><span>16分</span></button>
+        <button data-v="8" aria-pressed="false"><b>2:3</b><span>2拍3連</span></button>
+      </div>
+    </div>
+
+    <label class="vol">音量 <input type="range" id="vol" min="0" max="100" value="80"></label>
+
+    <button id="metroBtn" class="primary">Start</button>
+  </section>
+</main>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" data-tab="tuner" aria-selected="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M12 17l4-6"/></svg>
+    チューナー<i class="live-dot" id="tunerLive" hidden></i>
+  </button>
+  <button role="tab" data-tab="metro" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M9 3h6l4 18H5z"/><path d="M12 16l5-9"/></svg>
+    メトロノーム<i class="live-dot" id="metroLive" hidden></i>
+  </button>
+</nav>
+
+<script>
+/* =========================================================
+   共通の準備
+   ========================================================= */
+const $ = (s) => document.querySelector(s);
+
+// 音を出す・マイクを聞く「オーディオの心臓部」。最初のタップで作る（スマホの決まり）
+let audioCtx = null;
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+
+// 画面が勝手に消えないようにする（対応している端末だけ）
+let wakeLock = null;
+async function updateWakeLock() {
+  const need = tuner.running || metro.running;
+  try {
+    if (need && !wakeLock && "wakeLock" in navigator) {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    } else if (!need && wakeLock) {
+      await wakeLock.release(); wakeLock = null;
+    }
+  } catch (e) { /* 使えなくても問題なし */ }
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") updateWakeLock();
+});
+
+// 設定を覚えておく（使えない環境でもエラーにしない）
+function load(key, def) { try { const v = localStorage.getItem(key); return v === null ? def : Number(v); } catch (e) { return def; } }
+function save(key, v) { try { localStorage.setItem(key, String(v)); } catch (e) {} }
+
+// ボタン長押しで連続して値を変える
+function holdRepeat(btn, fn) {
+  let t1, t2;
+  const stop = () => { clearTimeout(t1); clearInterval(t2); };
+  btn.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); fn();
+    t1 = setTimeout(() => { t2 = setInterval(fn, 70); }, 400);
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => btn.addEventListener(ev, stop));
+  btn.addEventListener("click", (e) => { if (e.detail === 0) fn(); }); // キーボード操作用
+}
+
+/* =========================================================
+   タブ切り替え
+   ========================================================= */
+document.querySelectorAll(".tabs button").forEach((b) => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".tabs button").forEach((x) => x.setAttribute("aria-selected", x === b));
+    $("#tuner").hidden = b.dataset.tab !== "tuner";
+    $("#metro").hidden = b.dataset.tab !== "metro";
+  });
+});
+
+/* =========================================================
+   チューナー
+   ========================================================= */
+const NOTE_EN = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+const CX = 160, CY = 250;  // 針の支点（メーターの下の真ん中）
+const DEG = 0.9;           // 1セント = 0.9度（±50セントで±45度）
+// 角度(度, 12時が0)から円弧のパスを作る
+function dialArc(a1, a2, r) {
+  const p = (a) => [CX + r * Math.sin(a * Math.PI / 180), CY - r * Math.cos(a * Math.PI / 180)];
+  const [x1, y1] = p(a1), [x2, y2] = p(a2);
+  return `M${x1.toFixed(2)} ${y1.toFixed(2)} A${r} ${r} 0 ${a2 - a1 > 180 ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+}
+
+const tuner = {
+  running: false, stream: null, source: null, analyser: null,
+  buf: null, yinBuf: null,
+  refA: Math.min(450, Math.max(440, load("refA", 442))), // 初期値 442Hz
+  hist: [],           // 直近の周波数（ブレを抑えるため）
+  target: 0,          // 針の目標角度（セント）
+  shown: 0,           // 実際に表示している角度（セント）
+  lastHeard: 0, lastAnalyze: 0,
+};
+
+// --- メーターの目盛りを描く (-50 〜 +50 セント) ---
+(function drawScale() {
+  const g = $("#scale"), NS = "http://www.w3.org/2000/svg";
+  $("#track").setAttribute("d", dialArc(-50 * DEG, 50 * DEG, 206));
+  $("#zone").setAttribute("d", dialArc(-3 * DEG, 3 * DEG, 206));   // ぴったりゾーン(±3セント)
+  for (let c = -50; c <= 50; c += 2.5) {
+    const a = c * DEG * Math.PI / 180;
+    const major = c % 10 === 0, mid = c % 5 === 0;
+    const r1 = c === 0 ? 214 : major ? 215 : mid ? 216 : 216, r2 = c === 0 ? 234 : major ? 228 : mid ? 223 : 220;
+    const l = document.createElementNS(NS, "line");
+    l.setAttribute("x1", CX + r1 * Math.sin(a)); l.setAttribute("y1", CY - r1 * Math.cos(a));
+    l.setAttribute("x2", CX + r2 * Math.sin(a)); l.setAttribute("y2", CY - r2 * Math.cos(a));
+    l.setAttribute("class", "tick" + (major ? " major" : ""));
+    l.setAttribute("stroke-width", c === 0 ? 2.5 : major ? 1.8 : 1);
+    g.appendChild(l);
+    if (Math.abs(c) === 50) {   // 数字は両はしの ±50 だけ
+      const t = document.createElementNS(NS, "text");
+      t.setAttribute("x", CX + 244 * Math.sin(a)); t.setAttribute("y", CY - 244 * Math.cos(a) + 4);
+      t.setAttribute("text-anchor", "middle"); t.setAttribute("class", "tlabel");
+      t.textContent = c > 0 ? "+" + c : String(c);
+      g.appendChild(t);
+    }
+  }
+})();
+
+// --- 目盛りの上の▼（和音で合わせるときの目安）---
+//   −14セント … 長3度（低めにとる）
+//   0         … まん中
+//   +16セント … 短3度（高めにとる）
+const MARKS = [
+  { c: -14, label: "-14" },
+  { c: 0,   label: "" },
+  { c: 16,  label: "+16" },
+];
+(function drawMarks() {
+  const g = $("#jmarks"), NS = "http://www.w3.org/2000/svg";
+  for (const m of MARKS) {
+    const a = m.c * DEG * Math.PI / 180;
+    const P = (r, side) => {               // 半径 r、横に side ずらした点
+      const x = CX + r * Math.sin(a) + side * Math.cos(a);
+      const y = CY - r * Math.cos(a) + side * Math.sin(a);
+      return x.toFixed(1) + " " + y.toFixed(1);
+    };
+    const w = m.c === 0 ? 7 : 5.5;         // まん中の▼は少し大きく
+    const tri = document.createElementNS(NS, "path");
+    tri.setAttribute("d", `M${P(237, 0)} L${P(250, -w)} L${P(250, w)} Z`);  // 先が目盛りを向く
+    tri.setAttribute("class", "jmark");
+    g.appendChild(tri);
+    if (m.label) {
+      const t = document.createElementNS(NS, "text");
+      t.setAttribute("x", CX + 262 * Math.sin(a)); t.setAttribute("y", CY - 262 * Math.cos(a) + 4);
+      t.setAttribute("text-anchor", "middle"); t.setAttribute("class", "jlabel");
+      t.textContent = m.label;
+      g.appendChild(t);
+    }
+  }
+})();
+
+// --- 基準音 (440〜450Hz) ---
+function setRef(v) {
+  tuner.refA = Math.min(450, Math.max(440, v));
+  $("#refVal").textContent = tuner.refA;
+  $("#refChip").textContent = "A4 = " + tuner.refA + " Hz";
+  save("refA", tuner.refA);
+}
+setRef(tuner.refA);
+holdRepeat($("#refDown"), () => setRef(tuner.refA - 1));
+holdRepeat($("#refUp"), () => setRef(tuner.refA + 1));
+
+// --- 音の高さを調べる (YINというアルゴリズム) ---
+// 波形を少しずらして自分と比べ、いちばん似ている「ずらし幅」= 1周期 を探す
+function detectPitch(buf, sr) {
+  const W = Math.floor(buf.length / 2);
+  const tauMin = Math.max(2, Math.floor(sr / 4200));   // 最高 約4200Hz
+  const tauMax = Math.min(W - 2, Math.floor(sr / 27)); // 最低 約27Hz
+  if (!tuner.yinBuf || tuner.yinBuf.length < tauMax + 2) tuner.yinBuf = new Float32Array(tauMax + 2);
+  const d = tuner.yinBuf;
+  // ① 差分関数
+  for (let tau = 1; tau <= tauMax + 1; tau++) {
+    let s = 0;
+    for (let j = 0; j < W; j++) { const x = buf[j] - buf[j + tau]; s += x * x; }
+    d[tau] = s;
+  }
+  // ② 正規化（累積平均で割る）
+  d[0] = 1; let run = 0;
+  for (let tau = 1; tau <= tauMax + 1; tau++) { run += d[tau]; d[tau] = run ? d[tau] * tau / run : 1; }
+  // ③ しきい値より小さくなる最初の谷を探す
+  let t = -1;
+  for (let tau = tauMin; tau <= tauMax; tau++) {
+    if (d[tau] < 0.15) {
+      while (tau + 1 <= tauMax && d[tau + 1] < d[tau]) tau++;
+      t = tau; break;
+    }
+  }
+  if (t < 0) return -1;
+  // ④ 谷の位置を小数点まで細かく求める（放物線補間）
+  const x0 = d[t - 1], x1 = d[t], x2 = d[t + 1];
+  const den = x0 + x2 - 2 * x1;
+  const better = den ? t + (x0 - x2) / (2 * den) : t;
+  return sr / better;
+}
+
+function median(arr) { const a = [...arr].sort((x, y) => x - y); return a[Math.floor(a.length / 2)]; }
+
+// --- 画面の表示を更新 ---
+function meterClass(extra) {
+  $("#meter").className = "display" + (tuner.running ? " live" : "") + (extra ? " " + extra : "");
+}
+function showIdle() {
+  meterClass("idle");
+  $("#noteName").textContent = "—"; $("#noteAcc").textContent = ""; $("#noteOct").textContent = "";
+  $("#freq").textContent = "—"; $("#cents").textContent = "—";
+  tuner.target = 0;
+}
+function showPitch(f) {
+  const n = 12 * Math.log2(f / tuner.refA) + 69;  // MIDIノート番号（A4=69）
+  const near = Math.round(n);
+  const cents = (n - near) * 100;
+  const idx = ((near % 12) + 12) % 12;
+  const oct = Math.floor(near / 12) - 1;
+  // 音名は「文字」と「♯」を分けて、♯は小さく右上に
+  $("#noteName").textContent = NOTE_EN[idx][0];
+  const acc = NOTE_EN[idx].length > 1;
+  $("#noteAcc").textContent = acc ? "♯" : "";
+  $("#noteAcc").setAttribute("dy", acc ? -44 : 0);
+  $("#noteOct").textContent = oct;
+  $("#noteOct").setAttribute("dy", acc ? 44 : 0);
+  $("#freq").textContent = f.toFixed(1);
+  const c = Math.round(cents);
+  $("#cents").textContent = c > 0 ? "+" + c : c < 0 ? "−" + Math.abs(c) : "±0";
+  meterClass(Math.abs(cents) <= 3 ? "intune" : cents < 0 ? "flat-on" : "sharp-on");
+  tuner.target = cents;
+}
+
+// --- 毎フレーム呼ばれるループ ---
+function tunerLoop(now) {
+  if (!tuner.running) return;
+  if (now - tuner.lastAnalyze >= 40 && !clickNearby()) {  // 約25回/秒 調べる（クリック中は聴かない）
+    tuner.lastAnalyze = now;
+    tuner.analyser.getFloatTimeDomainData(tuner.buf);
+    let rms = 0;
+    for (let i = 0; i < tuner.buf.length; i++) rms += tuner.buf[i] * tuner.buf[i];
+    rms = Math.sqrt(rms / tuner.buf.length);
+    if (rms > 0.008) {                         // 小さすぎる音は無視
+      const f = detectPitch(tuner.buf, audioCtx.sampleRate);
+      if (f > 27 && f < 4200) {
+        // 音が大きく変わったら履歴をリセット
+        if (tuner.hist.length && Math.abs(f / median(tuner.hist) - 1) > 0.06) tuner.hist = [];
+        tuner.hist.push(f);
+        if (tuner.hist.length > 5) tuner.hist.shift();
+        showPitch(median(tuner.hist));
+        tuner.lastHeard = now;
+      }
+    }
+    if (now - tuner.lastHeard > 800) { tuner.hist = []; showIdle(); }
+  }
+  // 針をなめらかに動かす
+  tuner.shown += (tuner.target - tuner.shown) * 0.22;
+  setNeedle(tuner.shown);
+  requestAnimationFrame(tunerLoop);
+}
+function setNeedle(cents) {
+  const ang = Math.max(-50, Math.min(50, cents)) * DEG;
+  $("#needle").setAttribute("transform", `rotate(${ang.toFixed(2)} ${CX} ${CY})`);
+  // 0 から針までのズレの量を、リングの上に光の線で表示
+  $("#dev").setAttribute("d", Math.abs(ang) < 0.5 ? "" : dialArc(Math.min(0, ang), Math.max(0, ang), 206));
+}
+
+function tunerMsg(text) { const m = $("#tunerMsg"); m.textContent = text || ""; m.hidden = !text; }
+
+async function startTuner() {
+  tunerMsg("");
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    tunerMsg("マイクが使えません。このページは https:// のアドレスで開く必要があります（ファイルを直接開くとマイクは使えません）。");
+    return;
+  }
+  const ctx = getCtx();
+  try {
+    tuner.stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+  } catch (e) {
+    tunerMsg(e && e.name === "NotAllowedError"
+      ? "マイクの使用が許可されていません。ブラウザの設定でマイクを許可してください。"
+      : "マイクを開けませんでした（" + (e && e.name) + "）。");
+    return;
+  }
+  tuner.source = ctx.createMediaStreamSource(tuner.stream);
+  tuner.analyser = ctx.createAnalyser();
+  tuner.analyser.fftSize = 4096;
+  tuner.source.connect(tuner.analyser);
+  tuner.buf = new Float32Array(tuner.analyser.fftSize);
+  tuner.running = true; tuner.hist = []; tuner.lastHeard = 0;
+  $("#tunerStatus").textContent = "LISTENING";
+  showIdle();
+  $("#tunerBtn").textContent = "Stop"; $("#tunerBtn").classList.add("on");
+  $("#tunerLive").hidden = false;
+  updateWakeLock();
+  requestAnimationFrame(tunerLoop);
+}
+function stopTuner() {
+  tuner.running = false;
+  if (tuner.stream) tuner.stream.getTracks().forEach((t) => t.stop());
+  if (tuner.source) tuner.source.disconnect();
+  tuner.stream = tuner.source = tuner.analyser = null;
+  showIdle(); tuner.shown = 0; setNeedle(0);
+  $("#tunerStatus").textContent = "STANDBY";
+  $("#tunerBtn").textContent = "Start"; $("#tunerBtn").classList.remove("on");
+  $("#tunerLive").hidden = true;
+  updateWakeLock();
+}
+$("#tunerBtn").addEventListener("click", () => tuner.running ? stopTuner() : startTuner());
+
+/* =========================================================
+   メトロノーム
+   ---------------------------------------------------------
+   1拍を12個の細かい「ティック」に分けて刻む。
+   12で割り切れるので、どの細かいビートもぴったり合う。
+     8分   = 6ティックごと
+     3連符 = 4ティックごと
+     16分  = 3ティックごと
+     2拍3連 = 8ティックごと（2拍=24ティック を3等分）
+   ========================================================= */
+const TICKS = 12;
+const TEMPO_NAMES = [
+  [40, "Grave"], [60, "Largo"], [66, "Larghetto"], [76, "Adagio"], [108, "Andante"],
+  [120, "Moderato"], [156, "Allegro"], [176, "Vivace"], [200, "Presto"], [999, "Prestissimo"],
+];
+
+const metro = {
+  running: false,
+  bpm: Math.min(300, Math.max(30, load("bpm", 120))),
+  meter: 0,          // 0 = 強拍なし（初期値）
+  sub: 12,           // 12 = 細かいビートなし
+  volume: load("vol", 80) / 100,
+  tick: 0,           // スタートからのティック数
+  barBeat: 0,        // 小節の中で何拍目か
+  nextTime: 0,       // 次のティックを鳴らす時刻
+  timer: null, master: null,
+  queue: [],         // 光らせる予定の拍
+  taps: [],
+  clicks: [],        // チューナーが無視する「クリックが鳴る時刻」
+};
+
+// --- 音を1つ鳴らす（type: accent=強拍 / beat=普通の拍 / sub=細かいビート）---
+function click(t, type) {
+  const ctx = audioCtx;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  const freq = { accent: 1760, beat: 1240, sub: 880 }[type];
+  const vol = { accent: 1.0, beat: 0.5, sub: 0.25 }[type];
+  osc.type = type === "accent" ? "triangle" : "sine";
+  osc.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.002);   // すぐ大きく
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06); // すぐ消える
+  osc.connect(g); g.connect(metro.master);
+  osc.start(t); osc.stop(t + 0.07);
+  // 鳴らす時刻を記録（チューナーがこの瞬間を無視できるように）
+  // ただし間隔がとても短いとき（0.25秒未満）はずっと無視になってしまうので記録しない
+  const gap = type === "sub" ? 60 / metro.bpm * metro.sub / TICKS : 60 / metro.bpm;
+  if (gap >= 0.25) metro.clicks.push(t);
+}
+
+// --- いまクリック音がマイクに入っているかどうか ---
+// マイクの音は約0.09秒ぶんをまとめて調べるので、鳴った後 0.17秒までは「入っている」とみなす
+function clickNearby() {
+  if (!metro.running || !audioCtx) return false;
+  const now = audioCtx.currentTime;
+  const lat = (audioCtx.outputLatency || 0) + (audioCtx.baseLatency || 0); // スピーカーから出るまでの遅れ
+  while (metro.clicks.length && metro.clicks[0] + lat + 0.2 < now) metro.clicks.shift(); // 古い記録を捨てる
+  return metro.clicks.some((t) => now > t + lat - 0.02 && now < t + lat + 0.17);
+}
+
+// --- 少し先まで音の予約を入れる（ズレないためのコツ）---
+let beatCount = 0;
+function scheduler() {
+  const ctx = audioCtx;
+  while (metro.nextTime < ctx.currentTime + 0.12) {
+    const i = metro.tick, t = metro.nextTime;
+    if (i % TICKS === 0) {
+      // 拍の頭
+      let inBar = 0, accent = false;
+      if (metro.meter > 0) {
+        inBar = metro.barBeat % metro.meter;
+        accent = inBar === 0;
+      }
+      metro.barBeat++;
+      click(t, accent ? "accent" : "beat");
+      metro.queue.push({ t, inBar, n: beatCount++ });
+    } else if (metro.sub !== TICKS && i % metro.sub === 0) {
+      click(t, "sub");
+    }
+    metro.nextTime += 60 / metro.bpm / TICKS;
+    metro.tick++;
+  }
+}
+
+// --- 拍のリングを作る ---
+const NS = "http://www.w3.org/2000/svg";
+const RC = 140, RR = 118;  // リングの中心と半径
+function arcPath(a1, a2) {  // 角度(度, 12時が0)から円弧を作る
+  const p = (a) => [RC + RR * Math.sin(a * Math.PI / 180), RC - RR * Math.cos(a * Math.PI / 180)];
+  const [x1, y1] = p(a1), [x2, y2] = p(a2);
+  return `M${x1.toFixed(2)} ${y1.toFixed(2)} A${RR} ${RR} 0 ${a2 - a1 > 180 ? 1 : 0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+}
+(function drawBezel() {  // 時計のような細かい目盛り
+  for (let k = 0; k < 60; k++) {
+    const a = k * 6 * Math.PI / 180, q = k % 15 === 0;
+    const r1 = q ? 131 : 133, r2 = 138;
+    const l = document.createElementNS(NS, "line");
+    l.setAttribute("x1", RC + r1 * Math.sin(a)); l.setAttribute("y1", RC - r1 * Math.cos(a));
+    l.setAttribute("x2", RC + r2 * Math.sin(a)); l.setAttribute("y2", RC - r2 * Math.cos(a));
+    if (q) l.setAttribute("class", "q");
+    $("#bezel").appendChild(l);
+  }
+})();
+function renderRing() {
+  const n = metro.meter || 1;
+  const base = $("#segBase"), lit = $("#segLit");
+  base.innerHTML = ""; lit.innerHTML = "";
+  for (let k = 0; k < n; k++) {
+    for (const [g, cls] of [[base, "seg-base"], [lit, "seg-lit"]]) {
+      let el;
+      if (n === 1) {          // 強拍なし：ひとつながりの輪
+        el = document.createElementNS(NS, "circle");
+        el.setAttribute("cx", RC); el.setAttribute("cy", RC); el.setAttribute("r", RR);
+      } else {                // 拍子の数で区切る（すき間 14度）
+        const gap = 14, size = 360 / n;
+        el = document.createElementNS(NS, "path");
+        el.setAttribute("d", arcPath(k * size + gap / 2, (k + 1) * size - gap / 2));
+      }
+      el.setAttribute("class", cls + (metro.meter && k === 0 ? " down" : ""));
+      g.appendChild(el);
+    }
+  }
+  $("#meterChip").textContent = metro.meter ? metro.meter + " 拍子" : "強拍なし";
+}
+
+// --- 拍のタイミングで光らせる ---
+let litAnim = null, miniAnim = null;
+function flashBeat(ev) {
+  const beatMs = 60000 / metro.bpm;
+  const down = metro.meter > 0 && ev.inBar === 0;
+  // ① リングの今の拍の部分：パッと光って、次の拍まで少し残る
+  if (litAnim) litAnim.cancel();
+  const seg = $("#segLit").children[ev.inBar] || $("#segLit").children[0];
+  litAnim = seg.animate([{ opacity: 1 }, { opacity: 0.3 }],
+    { duration: Math.max(120, beatMs * 0.85), easing: "ease-out", fill: "forwards" });
+  // ② パネル全体がふわっと光る（強拍はより強く）
+  $("#flash").animate([{ opacity: down ? 0.9 : 0.55 }, { opacity: 0 }],
+    { duration: Math.min(260, beatMs * 0.7), easing: "ease-out" });
+  // ③ 強拍だけ、リングの内側も光る
+  if (down) $("#core").animate([{ opacity: 0.16 }, { opacity: 0 }],
+    { duration: Math.min(320, beatMs * 0.8), easing: "ease-out" });
+  $("#beatCount").textContent = metro.meter ? `${ev.inBar + 1} / ${metro.meter}` : "♩";
+  // ④ チューナー画面の小さなランプ（強拍は少し大きく）
+  if (miniAnim) miniAnim.cancel();
+  miniAnim = $("#miniGlow").animate(
+    [{ opacity: 1, transform: down ? "scale(1.45)" : "scale(1.1)" }, { opacity: 0.12, transform: "scale(1)" }],
+    { duration: Math.max(120, beatMs * 0.85), easing: "ease-out", fill: "forwards" });
+}
+
+function metroDraw() {
+  if (!metro.running) return;
+  const now = audioCtx.currentTime;
+  while (metro.queue.length && metro.queue[0].t <= now) flashBeat(metro.queue.shift());
+  requestAnimationFrame(metroDraw);
+}
+
+function startMetro() {
+  const ctx = getCtx();
+  metro.master = ctx.createGain();
+  metro.master.gain.value = metro.volume;
+  metro.master.connect(ctx.destination);
+  metro.tick = 0; metro.barBeat = 0; metro.queue = []; beatCount = 0;
+  metro.nextTime = ctx.currentTime + 0.06;
+  metro.running = true;
+  metro.timer = setInterval(scheduler, 25);
+  scheduler();
+  requestAnimationFrame(metroDraw);
+  $("#metroDisp").classList.add("live");
+  $("#metroBtn").textContent = "Stop"; $("#metroBtn").classList.add("on");
+  $("#metroLive").hidden = false;
+  $("#miniBeat").hidden = false;
+  updateWakeLock();
+}
+function stopMetro() {
+  metro.running = false;
+  clearInterval(metro.timer);
+  if (metro.master) { metro.master.disconnect(); metro.master = null; }
+  if (litAnim) { litAnim.cancel(); litAnim = null; }
+  $("#beatCount").textContent = "READY";
+  $("#metroDisp").classList.remove("live");
+  $("#metroBtn").textContent = "Start"; $("#metroBtn").classList.remove("on");
+  $("#metroLive").hidden = true;
+  $("#miniBeat").hidden = true;
+  if (miniAnim) { miniAnim.cancel(); miniAnim = null; }
+  metro.clicks = [];
+  updateWakeLock();
+}
+$("#metroBtn").addEventListener("click", () => metro.running ? stopMetro() : startMetro());
+
+// --- テンポ ---
+function setBpm(v) {
+  metro.bpm = Math.round(Math.min(300, Math.max(30, v)));
+  $("#bpmVal").textContent = metro.bpm;
+  $("#miniBpm").textContent = metro.bpm;
+  $("#bpmRange").value = metro.bpm;
+  $("#tempoName").textContent = TEMPO_NAMES.find(([max]) => metro.bpm < max)[1];
+  save("bpm", metro.bpm);
+}
+setBpm(metro.bpm);
+holdRepeat($("#bpmDown"), () => setBpm(metro.bpm - 1));
+holdRepeat($("#bpmUp"), () => setBpm(metro.bpm + 1));
+$("#bpmRange").addEventListener("input", (e) => setBpm(Number(e.target.value)));
+
+// タップテンポ：TAPを数回たたくとその速さになる
+$("#tapBtn").addEventListener("click", () => {
+  const now = performance.now();
+  if (metro.taps.length && now - metro.taps[metro.taps.length - 1] > 2000) metro.taps = [];
+  metro.taps.push(now);
+  if (metro.taps.length > 5) metro.taps.shift();
+  if (metro.taps.length >= 2) {
+    const gaps = metro.taps.slice(1).map((t, i) => t - metro.taps[i]);
+    const avg = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+    setBpm(60000 / avg);
+  }
+});
+
+// --- 拍子・細かいビートの切り替えボタン ---
+function segment(id, onPick) {
+  const btns = document.querySelectorAll(`#${id} button`);
+  btns.forEach((b) => b.addEventListener("click", () => {
+    btns.forEach((x) => x.setAttribute("aria-pressed", x === b));
+    onPick(Number(b.dataset.v));
+  }));
+}
+segment("meterSeg", (v) => { metro.meter = v; metro.barBeat = 0; if (litAnim) { litAnim.cancel(); litAnim = null; } renderRing(); });
+segment("subSeg", (v) => { metro.sub = v; });
+renderRing();
+
+// --- 音量 ---
+$("#vol").value = Math.round(metro.volume * 100);
+$("#vol").addEventListener("input", (e) => {
+  metro.volume = Number(e.target.value) / 100;
+  if (metro.master) metro.master.gain.value = metro.volume;
+  save("vol", e.target.value);
+});
+</script>
+</body>
+</html>
